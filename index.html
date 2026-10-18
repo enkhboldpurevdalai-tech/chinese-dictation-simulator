@@ -116,11 +116,11 @@ body.mocking .book .imgbox::after{content:"Book hidden during the mock test";pos
 /* ---------- data: 汉语教程(第3版) 1A, verified against the book pages ---------- */
 // item: [numbered pinyin, characters (for the voice / L1 answer), book page, key-answer flag]
 const SECTIONS = [
-  {id:'l1comm', name:'L1 · Communication', task:'Write 汉字 + pinyin', chars:true, items:[['ni3 hao3','你好',12,1]]},
-  {id:'l1char', name:'L1 · Characters', task:'Write 汉字 + pinyin', chars:true, items:[
+  {id:'l1comm', name:'L1 · Communication (p.12)', task:'Write 汉字 + pinyin', chars:true, items:[['ni3 hao3','你好',12,1]]},
+  {id:'l1char', name:'L1 · Characters (p.12–13)', task:'Write 汉字 + pinyin', chars:true, items:[
     ['yi1','一',12],['ba1','八',12],['wu3','五',12],['bu4','不',12],['da4','大',12],['kou3','口',12],['bai2','白',12],
     ['nü3','女',13],['ni3','你',13],['hao3','好',13],['ma3','马',13]]},
-  {id:'ex1', name:'L3 Ex 1 · Tones', task:'Write the pinyin with its tone', items:[
+  {id:'ex1', name:'L3 Ex 1 · Tones (p.26–27)', task:'Write the pinyin with its tone', items:[
     ['xue1','靴',26],['xue2','学',26,1],['xue3','雪',26],['xue4','谑',26],
     ['qu1','区',26],['qu2','渠',26],['qu3','取',26,1],['qu4','去',26,1],
     ['ju1','居',26],['ju2','局',26,1],['ju3','举',26],['ju4','句',26],
@@ -131,12 +131,12 @@ const SECTIONS = [
     ['ming2','明',27,1],['ming3','酩',27],['ming4','命',27],
     ['tian1','天',27,1],['tian2','甜',27],['tian3','舔',27],['tian4','掭',27],
     ['jian1','尖',27],['jian3','减',27],['jian4','见',27,1]]},
-  {id:'ex2', name:'L3 Ex 2 · 不 sandhi', task:'Write the pinyin (bù or bú?)', items:[
+  {id:'ex2', name:'L3 Ex 2 · 不 sandhi (p.27)', task:'Write the pinyin (bù or bú?)', items:[
     ['bu4 he1','不喝',27],['bu4 ting1','不听',27],['bu4 ban1','不搬',27],['bu4 xin1','不新',27],
     ['bu4 mang2','不忙',27],['bu4 xue2','不学',27],['bu4 tian2','不甜',27],['bu4 xing2','不行',27],
     ['bu4 hao3','不好',27],['bu4 dong3','不懂',27],['bu4 jiang3','不讲',27],['bu4 qing3','不请',27],
     ['bu2 yao4','不要',27,1],['bu2 kan4','不看',27,1],['bu2 nian4','不念',27,1],['bu2 jin4','不进',27,1]]},
-  {id:'ex3s', name:'L3 Ex 3 · Syllables', task:'Write the pinyin with its tone', items:[
+  {id:'ex3s', name:'L3 Ex 3 · Syllables (p.27)', task:'Write the pinyin with its tone', items:[
     ['ji1','鸡'],['qi1','七'],['xi1','吸'],['ju1','居'],['qu1','区'],['xu1','虚'],
     ['jian1','肩'],['qian1','千'],['xian1','先'],['jiang1','江'],['qiang1','枪'],['xiang1','香'],
     ['jin1','金'],['qin1','亲'],['xin1','心'],['jing1','京'],['qing1','轻'],['xing1','猩'],
@@ -146,16 +146,13 @@ const SECTIONS = [
     ['jia1','家'],['xia4','下'],['qing1','青'],['xing1','星'],['jiang3','讲'],['qiang2','墙'],
     ['jiao4','叫'],['xiao4','笑'],['qiu2','球'],['xiu1','修'],['jie4','借'],['qie4','窃'],
     ['jie3','姐'],['xie3','写'],['qiao2','桥'],['xiao3','小'],['jing3','井'],['qing3','请']]},
-  {id:'ex3w', name:'L3 Ex 3 · Words', task:'Write the pinyin with its tones', items:[
+  {id:'ex3w', name:'L3 Ex 3 · Words (p.27)', task:'Write the pinyin with its tones', items:[
     ['ji1qi4','机器'],['ju3 qi2','举旗'],['xiu1xi5','休息'],['xiu1li3','修理'],
     ['ju3xing2','举行'],['ju4xing2','句型'],['xu1yao4','需要'],['xi1yao4','西药'],
     ['nu3li4','努力'],['lü3li4','履历'],['qu3 qian2','取钱'],['ti2qian2','提前'],
     ['jin1tian1','今天'],['ming2tian1','明天'],['jin1nian2','今年'],['ming2nian2','明年'],
     ['quan2xian4','权限'],['quan2mian4','全面'],['xin1xian1','新鲜'],['xin1nian2','新年'],
     ['dong1bian5','东边'],['xi1bian5','西边'],['qian2bian5','前边'],['hou4bian5','后边']]},
-  {id:'bonus', name:'Bonus · 不 examples p.26', task:'Write the pinyin (bù or bú?)', bonus:true, items:[
-    ['bu4 nan2','不难',26],['bu4 gao1','不高',26],['bu4 lai2','不来',26],['bu4 hao3','不好',26],
-    ['bu4 xiao3','不小',26],['bu2 qu4','不去',26],['bu2 xie4','不谢',26]]},
 ];
 // English meanings: L1, the Ex 1 answer words, Ex 2 and the Ex 3 words (Ex 3 single syllables are sound drills only)
 const MEAN = {
@@ -360,15 +357,11 @@ document.addEventListener('keydown', e => { if (keyHandler) keyHandler(e); });
 
 /* ---------- Study ---------- */
 const PLAN = [
-  ['0:00–0:15','Read the rules below aloud. Say every example.'],
-  ['0:15–0:45','L1: stroke-order quiz on each character until 0 mistakes, then write each 5× on paper from memory, with pinyin.'],
-  ['0:45–1:30','Practice by section, Ex 2 → Ex 1 → Ex 3 syllables → Ex 3 words. Write on paper AND type. Misses come back.'],
-  ['1:30–1:40','Break: stand up, water, no phone.'],
-  ['1:40–2:05','Mock test #1 on paper. Mark honestly.'],
-  ['2:05–2:35','Errors tab: drill until the list is empty. Write each miss 3× by hand.'],
-  ['2:35–3:00','Mock test #2. Below 18/20? One more error round + mock #3.'],
-  ['Sleep','At least 6 h. Sleep is when tonight\'s practice gets stored.'],
-  ['Morning','15 min: error drill + one mock with Reads 1×.'],
+  ['20 min','L1 characters (p.12–13): write all 11 by hand with pinyin until every one is right.'],
+  ['10 min','L3 Ex 2 不 (p.27): bú before a 4th tone, bù before everything else.'],
+  ['20 min','L3 Ex 1 Tones (p.26–27): which of the 4 tones do you hear?'],
+  ['30 min','L3 Ex 3 (p.27): syllables, then words. j/q/x, -n/-ng, u vs ü.'],
+  ['10 min','Mock test, then drill the Errors tab until it is empty.'],
 ];
 const RULES = [
   '<b>Tone mark position:</b> on a; else on o or e; else on the last vowel of iu / ui → jiǔ, xiū, duì.',
@@ -385,7 +378,7 @@ function renderStudy(){
   const done = store.get('plan', {});
   $main.innerHTML = `
     ${voices.length ? '' : '<div class="warn">No Mandarin voice found. Use Safari or Chrome on the Mac; Tingting comes with macOS (System Settings → Accessibility → Spoken Content).</div>'}
-    <div class="card plan"><h2>Tonight's plan (≈3 h)</h2>${PLAN.map(([t, d], i) =>
+    <div class="card plan"><h2>Plan (≈1.5 h) · scope: L1 p.12–13, L3 Ex 1–3 p.26–27</h2>${PLAN.map(([t, d], i) =>
       `<label><input type="checkbox" data-i="${i}" ${done[i] ? 'checked' : ''}><span class="t">${t}</span><span>${d}</span></label>`).join('')}</div>
     <div class="card"><h2>The rules that decide marks</h2><ul class="rules">${RULES.map(r => `<li>${r}</li>`).join('')}</ul></div>
     <div class="card"><h2>Stroke order · L1 characters</h2>
@@ -483,18 +476,18 @@ function practiceSummary(){
 
 /* ---------- Mock test ---------- */
 let mock = null;
+// The teacher picks 20 from the whole scope; the split is unknown, so: one from each part, the rest at random.
 function buildMock(){
-  const ex1 = bySec('ex1'), ex2 = bySec('ex2'), ex3s = bySec('ex3s'), ex3w = bySec('ex3w');
-  const ex1key = pick(ex1.filter(i => i.key), 2);
-  const ex1rest = pick(ex1.filter(i => !ex1key.includes(i)), 2);
-  return [...bySec('l1comm'), ...pick(bySec('l1char'), 4), ...ex1key, ...ex1rest,
-    ...pick(ex2.filter(i => i.key), 2), ...pick(ex2.filter(i => !i.key), 2), ...pick(ex3s, 4), ...pick(ex3w, 3)];
+  const parts = ['l1comm', 'l1char', 'ex1', 'ex2', 'ex3s', 'ex3w'];
+  const chosen = parts.map(p => pick(bySec(p), 1)[0]);
+  const rest = pick(ITEMS.filter(i => !chosen.includes(i)), 20 - chosen.length);
+  return [...chosen, ...rest];
 }
 function renderMockIntro(){
   $main.innerHTML = `<div class="card"><h2>Mock test · 20 items</h2>
     <p>Like the real thing: each item is read ${S.reps}×, then you get <input id="gap" type="number" min="4" max="40" value="${S.gap}" style="width:52px"> s to write before the next one starts.
     The book is hidden. Write on paper; typing in the box is optional and only used for auto-marking.</p>
-    <p class="small muted">Mix: 你好 + 4 L1 characters, 4 from Ex 1, 4 from Ex 2 (2 with bú), 4 Ex 3 syllables, 3 Ex 3 words. Order is shuffled.</p>
+    <p class="small muted">20 random items from the exact scope (L1 p.12–13, L3 Ex 1–3 p.26–27), at least one from each part. Every mock is different.</p>
     <div class="row"><button class="btn primary" id="start">Start mock</button></div></div>`;
   document.getElementById('start').onclick = () => { S.gap = Math.max(4, +document.getElementById('gap').value || 12); saveS(); startMock(); };
 }
