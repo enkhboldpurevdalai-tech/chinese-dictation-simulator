@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dictation Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
+<style>
+:root{
+  --bg:#f6f5f1; --panel:#fff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e3e1da; --chip:#f0eee8;
+  --accent:#b4232a; --accent-ink:#fff; --ok:#1f7a3f; --ok-bg:#e6f4ea; --bad:#b3261e; --bad-bg:#fbe9e7; --warn-bg:#fff4d6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151517; --panel:#1f1f22; --ink:#ececee; --muted:#9a9aa1; --line:#33333a; --chip:#2a2a2f;
+    --accent:#e5484d; --accent-ink:#fff; --ok:#4cc38a; --ok-bg:#16301f; --bad:#ff6b5e; --bad-bg:#3a1b18; --warn-bg:#3a3115;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151517; --panel:#1f1f22; --ink:#ececee; --muted:#9a9aa1; --line:#33333a; --chip:#2a2a2f;
+  --accent:#e5484d; --accent-ink:#fff; --ok:#4cc38a; --ok-bg:#16301f; --bad:#ff6b5e; --bad-bg:#3a1b18; --warn-bg:#3a3115;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+header h1{font-size:16px;margin:0;font-weight:650}
+nav{display:flex;gap:4px}
+nav button{border:0;background:transparent;color:var(--muted);padding:6px 12px;border-radius:8px;font:inherit;cursor:pointer}
+nav button.on{background:var(--chip);color:var(--ink);font-weight:600}
+.settings{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-left:auto;font-size:13px;color:var(--muted)}
+.settings select,.settings input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 4px}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;padding:16px;height:calc(100vh - 58px)}
+body.nobook .wrap{grid-template-columns:minmax(0,1fr)}
+body.nobook .book{display:none}
+.main,.book{overflow:auto;min-height:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 10px}
+.muted{color:var(--muted)} .small{font-size:13px}
+a{color:var(--accent)}
+button.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 14px;border-radius:8px;cursor:pointer}
+button.btn:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--chip);border:1px solid transparent;border-radius:8px;padding:4px 9px;cursor:pointer;font-size:14px;line-height:1.3;text-align:center}
+.chip:hover{border-color:var(--muted)}
+.chip .hz{display:block;font-size:12px;color:var(--muted)}
+.chip.key{border-color:var(--accent)}
+.rules li{margin:3px 0}
+.rules b{color:var(--accent)}
+.plan label{display:flex;gap:8px;align-items:flex-start;margin:5px 0}
+.plan input{margin-top:4px}
+.plan .t{font-variant-numeric:tabular-nums;color:var(--muted);min-width:92px}
+.sections{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px;margin:8px 0 12px}
+.drill{text-align:center;padding:26px 16px}
+.drill .count{color:var(--muted);font-size:13px}
+.drill .task{margin:6px 0 14px;font-weight:600}
+.drill input.ans{font-size:24px;text-align:center;width:min(420px,100%);padding:10px;border:2px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.drill input.ans:focus{outline:none;border-color:var(--accent)}
+.answer{margin-top:16px;padding:14px;border-radius:10px}
+.answer.ok{background:var(--ok-bg)} .answer.bad{background:var(--bad-bg)} .answer.pending{background:var(--warn-bg)}
+.answer .py{font-size:34px;font-weight:600;letter-spacing:.5px}
+.answer .hzbig{font-size:30px}
+.verdict{font-weight:700;margin-bottom:4px}
+.ok .verdict{color:var(--ok)} .bad .verdict{color:var(--bad)}
+.keys{font-size:12px;color:var(--muted);margin-top:12px}
+kbd{font:12px ui-monospace,Menlo,monospace;background:var(--chip);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+td.mark{cursor:pointer;font-weight:700;text-align:center;width:52px}
+td.mark.y{color:var(--ok)} td.mark.n{color:var(--bad)}
+.score{font-size:40px;font-weight:700}
+.hw{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:10px;margin:8px auto 0}
+.book .tabs{display:flex;gap:4px;flex-wrap:wrap;align-items:center;position:sticky;top:0;background:var(--bg);padding-bottom:8px;z-index:2}
+.book img{width:100%;display:block;border-radius:8px;border:1px solid var(--line);background:#fff}
+.book iframe{width:100%;height:calc(100vh - 150px);display:block;border:1px solid var(--line);border-radius:8px;background:#fff}
+.book .imgbox{position:relative}
+body.mocking .book .imgbox::after{content:"Book hidden during the mock test";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--muted);font-weight:600;border-radius:8px}
+.warn{background:var(--warn-bg);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px}
+.bar{height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin:10px auto 0;width:min(420px,100%)}
+.bar i{display:block;height:100%;background:var(--accent);transition:width 1s linear}
+@media (max-width:900px){
+  .wrap{grid-template-columns:minmax(0,1fr);height:auto;padding:12px 16px}
+  .book{height:75vh}
+  .settings{margin-left:0}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>听写 Dictation · Mon 19 Oct</h1>
+  <nav id="nav">
+    <button data-tab="study" class="on">Study</button>
+    <button data-tab="practice">Practice</button>
+    <button data-tab="mock">Mock test</button>
+    <button data-tab="errors">Errors <span id="errCount"></span></button>
+  </nav>
+  <div class="settings">
+    <label>Voice <select id="voice"></select></label>
+    <label>Speed <input id="rate" type="range" min="0.5" max="1.2" step="0.05" style="width:80px"></label>
+    <label>Reads <select id="reps"><option value="1">1×</option><option value="2">2×</option></select></label>
+    <label><input id="showBook" type="checkbox" checked> Book</label>
+  </div>
+</header>
+
+<div class="wrap">
+  <main class="main" id="main"></main>
+  <aside class="book">
+    <div class="tabs" id="bookTabs"></div>
+    <div class="imgbox" id="bookBox"></div>
+  </aside>
+</div>
+
+<script>
+/* ---------- data: 汉语教程(第3版) 1A, verified against the book pages ---------- */
+// item: [numbered pinyin, characters (for the voice / L1 answer), book page, key-answer flag]
+const SECTIONS = [
+  {id:'l1comm', name:'L1 · Communication', task:'Write 汉字 + pinyin', chars:true, items:[['ni3 hao3','你好',12,1]]},
+  {id:'l1char', name:'L1 · Characters', task:'Write 汉字 + pinyin', chars:true, items:[
+    ['yi1','一',12],['ba1','八',12],['wu3','五',12],['bu4','不',12],['da4','大',12],['kou3','口',12],['bai2','白',12],
+    ['nü3','女',13],['ni3','你',13],['hao3','好',13],['ma3','马',13]]},
+  {id:'ex1', name:'L3 Ex 1 · Tones', task:'Write the pinyin with its tone', items:[
+    ['xue1','靴',26],['xue2','学',26,1],['xue3','雪',26],['xue4','谑',26],
+    ['qu1','区',26],['qu2','渠',26],['qu3','取',26,1],['qu4','去',26,1],
+    ['ju1','居',26],['ju2','局',26,1],['ju3','举',26],['ju4','句',26],
+    ['qian1','千',26],['qian2','钱',26,1],['qian3','浅',26],['qian4','欠',26],
+    ['liu1','溜',26],['liu2','刘',26],['liu3','柳',26],['liu4','六',26,1],
+    ['qi1','七',26,1],['qi2','骑',26],['qi3','起',26],['qi4','气',26],
+    ['jiu1','揪',27],['jiu3','九',27,1],['jiu4','就',27],
+    ['ming2','明',27,1],['ming3','酩',27],['ming4','命',27],
+    ['tian1','天',27,1],['tian2','甜',27],['tian3','舔',27],['tian4','掭',27],
+    ['jian1','尖',27],['jian3','减',27],['jian4','见',27,1]]},
+  {id:'ex2', name:'L3 Ex 2 · 不 sandhi', task:'Write the pinyin (bù or bú?)', items:[
+    ['bu4 he1','不喝',27],['bu4 ting1','不听',27],['bu4 ban1','不搬',27],['bu4 xin1','不新',27],
+    ['bu4 mang2','不忙',27],['bu4 xue2','不学',27],['bu4 tian2','不甜',27],['bu4 xing2','不行',27],
+    ['bu4 hao3','不好',27],['bu4 dong3','不懂',27],['bu4 jiang3','不讲',27],['bu4 qing3','不请',27],
+    ['bu2 yao4','不要',27,1],['bu2 kan4','不看',27,1],['bu2 nian4','不念',27,1],['bu2 jin4','不进',27,1]]},
+  {id:'ex3s', name:'L3 Ex 3 · Syllables', task:'Write the pinyin with its tone', items:[
+    ['ji1','鸡'],['qi1','七'],['xi1','吸'],['ju1','居'],['qu1','区'],['xu1','虚'],
+    ['jian1','肩'],['qian1','千'],['xian1','先'],['jiang1','江'],['qiang1','枪'],['xiang1','香'],
+    ['jin1','金'],['qin1','亲'],['xin1','心'],['jing1','京'],['qing1','轻'],['xing1','猩'],
+    ['jian4','件'],['juan4','倦'],['qian2','钱'],['quan2','全'],['xian3','险'],['xuan3','选'],
+    ['jin1','今'],['jun1','军'],['qin2','琴'],['qun2','群'],['xin1','新'],['xun1','熏'],
+    ['ji2','急'],['ju2','局'],['qi3','起'],['qu3','取'],['xi1','西'],['xu1','需'],
+    ['jia1','家'],['xia4','下'],['qing1','青'],['xing1','星'],['jiang3','讲'],['qiang2','墙'],
+    ['jiao4','叫'],['xiao4','笑'],['qiu2','球'],['xiu1','修'],['jie4','借'],['qie4','窃'],
+    ['jie3','姐'],['xie3','写'],['qiao2','桥'],['xiao3','小'],['jing3','井'],['qing3','请']]},
+  {id:'ex3w', name:'L3 Ex 3 · Words', task:'Write the pinyin with its tones', items:[
+    ['ji1qi4','机器'],['ju3 qi2','举旗'],['xiu1xi5','休息'],['xiu1li3','修理'],
+    ['ju3xing2','举行'],['ju4xing2','句型'],['xu1yao4','需要'],['xi1yao4','西药'],
+    ['nu3li4','努力'],['lü3li4','履历'],['qu3 qian2','取钱'],['ti2qian2','提前'],
+    ['jin1tian1','今天'],['ming2tian1','明天'],['jin1nian2','今年'],['ming2nian2','明年'],
+    ['quan2xian4','权限'],['quan2mian4','全面'],['xin1xian1','新鲜'],['xin1nian2','新年'],
+    ['dong1bian5','东边'],['xi1bian5','西边'],['qian2bian5','前边'],['hou4bian5','后边']]},
+  {id:'bonus', name:'Bonus · 不 examples p.26', task:'Write the pinyin (bù or bú?)', bonus:true, items:[
+    ['bu4 nan2','不难',26],['bu4 gao1','不高',26],['bu4 lai2','不来',26],['bu4 hao3','不好',26],
+    ['bu4 xiao3','不小',26],['bu2 qu4','不去',26],['bu2 xie4','不谢',26]]},
+];
+// English meanings: L1, the Ex 1 answer words, Ex 2 and the Ex 3 words (Ex 3 single syllables are sound drills only)
+const MEAN = {
+  '你好':'hello', '一':'one', '八':'eight', '五':'five', '不':'not, no', '大':'big', '口':'mouth', '白':'white',
+  '女':'woman, female', '你':'you', '好':'good', '马':'horse',
+  '学':'study', '取':'take, fetch', '去':'go', '局':'office (as in 邮局 post office)', '钱':'money', '六':'six', '七':'seven',
+  '九':'nine', '明':'bright (明天 tomorrow)', '天':'day, sky', '见':'see',
+  '不喝':'not drink', '不听':'not listen', '不搬':'not move (house)', '不新':'not new', '不忙':'not busy', '不学':'not study',
+  '不甜':'not sweet', '不行':'no way, won\'t do', '不好':'not good', '不懂':'not understand', '不讲':'not speak', '不请':'not invite',
+  '不要':'don\'t want', '不看':'not look, not read', '不念':'not read aloud', '不进':'not enter',
+  '不难':'not hard', '不高':'not tall', '不来':'not come', '不小':'not small', '不去':'not go', '不谢':'you\'re welcome',
+  '机器':'machine', '举旗':'raise a flag', '休息':'rest', '修理':'repair', '举行':'hold (an event)', '句型':'sentence pattern',
+  '需要':'need', '西药':'western medicine', '努力':'work hard', '履历':'résumé', '取钱':'withdraw money', '提前':'in advance',
+  '今天':'today', '明天':'tomorrow', '今年':'this year', '明年':'next year', '权限':'authority, permission', '全面':'comprehensive',
+  '新鲜':'fresh', '新年':'new year', '东边':'east side', '西边':'west side', '前边':'front', '后边':'back, behind',
+};
+const ITEMS = [];
+for (const s of SECTIONS) for (const [py, hz, page, key] of s.items)
+  ITEMS.push({id:s.id+':'+py+':'+hz, sec:s.id, py, hz, en:(s.id === 'ex3s' ? '' : MEAN[hz] || ''), page:page||27, key:!!key, chars:!!s.chars, task:s.task});
+const bySec = id => ITEMS.filter(i => i.sec === id);
+
+/* ---------- pinyin ---------- */
+const MARKS = {a:'āáǎà', e:'ēéěè', i:'īíǐì', o:'ōóǒò', u:'ūúǔù', 'ü':'ǖǘǚǜ'};
+function markSyl(s, t){
+  if (!(t >= 1 && t <= 4)) return s;
+  let k = s.indexOf('a');
+  if (k < 0) k = s.indexOf('e');
+  if (k < 0 && s.includes('ou')) k = s.indexOf('o');
+  if (k < 0) for (let j = s.length - 1; j >= 0; j--) if ('iouü'.includes(s[j])) { k = j; break; }
+  return k < 0 ? s : s.slice(0, k) + MARKS[s[k]][t - 1] + s.slice(k + 1);
+}
+// accepts tone marks or numbers (ni3 hao3, nv3, nu:3, xiu1xi / xiu1xi5)
+const toMarks = str => str.normalize('NFC').toLowerCase().replace(/u:/g, 'ü').replace(/v/g, 'ü')
+  .replace(/([a-zü]+)([0-5])/g, (m, s, t) => markSyl(s, +t));
+const norm = str => toMarks(str).replace(/[^a-zāáǎàēéěèīíǐìōóǒòūúǔùüǖǘǚǜ]/g, '');
+const strip = str => str.normalize('NFD').replace(/[\u0300\u0301\u0304\u030c]/g, '').normalize('NFC');
+const toneSeq = str => [...str].map(c => { for (const v in MARKS) { const k = MARKS[v].indexOf(c); if (k >= 0) return k + 1; } return 0; }).filter(Boolean).join('');
+const show = it => toMarks(it.py);
+
+function diagnose(inp, ans){
+  const a = strip(ans), b = strip(inp);
+  if (a === b) {
+    if (/^bú/.test(ans) && /^bù/.test(inp)) return '不 before a 4th tone becomes bú.';
+    if (/^bù/.test(ans) && /^bú/.test(inp)) return '不 stays bù before 1st, 2nd and 3rd tones. Only a 4th tone flips it to bú.';
+    if (ans === 'nǐhǎo' && inp.startsWith('ní')) return 'Write nǐ hǎo. 3rd + 3rd is only spoken ní hǎo.';
+    const ta = toneSeq(ans), tb = toneSeq(inp);
+    if (ta === tb) return 'Tone mark on the wrong vowel: a first, else o/e, else the last of iu/ui.';
+    if (tb.length > ta.length) return 'Neutral tone: …bian and the xi of xiūxi carry no mark.';
+    if (tb.length < ta.length) return 'A tone mark is missing.';
+    return 'Right letters, wrong tone. Replay it and trace the pitch with your hand.';
+  }
+  const u = x => x.replace(/ü/g, 'u');
+  if (u(a) === u(b)) return /ü/.test(a) ? 'After n / l keep the dots: nǚ, lǚlì.' : 'After j, q, x the ü is written u: jū, qù, xuǎn, jūn.';
+  if (a === b.replace(/iou/g, 'iu') || a === b.replace(/uei/g, 'ui')) return 'iou is written iu after an initial (liù, jiǔ).';
+  if (a.replace(/ng/g, 'n') === b.replace(/ng/g, 'n')) return '-n vs -ng: jīn/jīng, xīn/xīng, qín/qīng, jiān/jiāng.';
+  const jqx = x => x.replace(/[qx]/g, 'j');
+  if (jqx(a) === jqx(b)) return 'j / q / x mix-up: q is j with a puff of air; x is a smiling "sh".';
+  return 'Spelling differs. Compare letter by letter.';
+}
+// returns {ok: true|false|null, msg}
+function grade(it, raw){
+  const typed = raw.trim();
+  const cjk = (typed.match(/[\u4e00-\u9fff]/g) || []).join('');
+  const pyIn = norm(typed), pyAns = norm(it.py);
+  if (!pyIn && !cjk) return {ok:null, msg:'Nothing typed. Mark yourself against your paper.'};
+  if (cjk && cjk !== it.hz) return {ok:false, msg:`Character: you typed ${cjk}, the answer is ${it.hz}.`};
+  if (!pyIn) return {ok: it.chars ? true : null, msg:'Character right. Check the pinyin on your paper too.'};
+  if (pyIn !== pyAns) return {ok:false, msg:diagnose(pyIn, pyAns), yours:toMarks(typed)};
+  if (it.chars && !cjk) return {ok:true, msg:'Pinyin right. Now check the 汉字 on your paper (press X if it was wrong).'};
+  return {ok:true, msg:''};
+}
+
+/* ---------- storage (best effort) ---------- */
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('dict1019.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem('dict1019.' + k, JSON.stringify(v)); } catch {} }
+};
+const S = Object.assign({rate:0.8, reps:2, gap:12, voice:'', book:true, secs:['l1comm','l1char','ex1','ex2','ex3s','ex3w']}, store.get('settings', {}));
+const saveS = () => store.set('settings', S);
+let bank = store.get('errors', {});  // id -> {miss, streak}
+const saveBank = () => { store.set('errors', bank); document.getElementById('errCount').textContent = Object.keys(bank).length ? `(${Object.keys(bank).length})` : ''; };
+function noteResult(it, ok){
+  const e = bank[it.id];
+  if (!ok) bank[it.id] = {miss:(e ? e.miss : 0) + 1, streak:0};
+  else if (e) { e.streak++; if (e.streak >= 2) delete bank[it.id]; }
+  saveBank();
+}
+
+/* ---------- speech ---------- */
+let voices = [], voice = null, speakTok = 0;
+function loadVoices(){
+  voices = (window.speechSynthesis ? speechSynthesis.getVoices() : []).filter(v => /^zh[-_](CN|Hans)/i.test(v.lang) || /普通话|Mandarin|Tingting|Ting-Ting/i.test(v.name));
+  const sel = document.getElementById('voice');
+  sel.innerHTML = '<option value="rec">Natural (recorded)</option>' + voices.map((v, i) => `<option value="${i}">${v.name} (Mac)</option>`).join('');
+  const k = voices.findIndex(v => v.name === S.voice);
+  sel.value = k >= 0 ? String(k) : 'rec'; voice = voices[k] || null;
+  if (k < 0) S.voice = 'rec';
+}
+let player = null;
+const audioFile = t => 'audio/' + [...t].map(c => c.codePointAt(0).toString(16)).join('_') + '.mp3';
+function playRecorded(text, times, rate, tok){
+  return new Promise(res => {
+    const once = n => {
+      if (tok !== speakTok) return res(false);
+      const a = player = new Audio(audioFile(text));
+      a.preservesPitch = true; a.playbackRate = Math.min(1.6, Math.max(0.5, rate / 0.8));
+      let done = false;
+      const fin = ok => { if (done) return; done = true; if (!ok) return res('fail'); n > 1 ? setTimeout(() => once(n - 1), 1100) : res(true); };
+      a.onended = () => fin(true); a.onerror = () => fin(false);
+      a.play().catch(() => fin(false));
+    };
+    once(times);
+  });
+}
+function speak(text, times, rate){
+  times = times || S.reps; rate = rate || S.rate;
+  const tok = ++speakTok;
+  if (player) { player.pause(); player = null; }
+  if (S.voice === '' || S.voice === 'rec') {
+    return playRecorded(text, times, rate, tok).then(r => r === 'fail' ? speakTTS(text, times, rate, tok) : r);
+  }
+  return speakTTS(text, times, rate, tok);
+}
+function speakTTS(text, times, rate, tok){
+  if (!window.speechSynthesis) return Promise.resolve(false);
+  speechSynthesis.cancel();
+  return new Promise(res => {
+    const once = n => {
+      if (tok !== speakTok) return res(false);
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN'; if (voice) u.voice = voice; u.rate = rate;
+      let done = false;
+      const fin = () => { if (done) return; done = true; n > 1 ? setTimeout(() => once(n - 1), 1100) : res(true); };
+      u.onend = fin; u.onerror = fin;
+      speechSynthesis.speak(u);
+    };
+    setTimeout(() => once(times), 80);
+  });
+}
+const stopSpeech = () => { speakTok++; if (player) { player.pause(); player = null; } if (window.speechSynthesis) speechSynthesis.cancel(); };
+
+/* ---------- book pane ---------- */
+const PAGES = [[12,'L1 p.12'],[13,'L1 p.13'],[26,'L3 p.26'],[27,'L3 p.27']];
+// Page scans (pages/book-N.jpg) exist only in the local copy. Without them, the viewer opens their own PDF;
+// it is read in the browser and never uploaded. In the 汉语教程 1A PDF, book page N is PDF page N + 27.
+let pdfUrl = null;
+const PDF_OFFSET = 27;
+function showBook(p){
+  const box = document.getElementById('bookBox');
+  box.innerHTML = pdfUrl ? `<iframe src="${pdfUrl}#page=${p + PDF_OFFSET}" title="Textbook page ${p}"></iframe>`
+    : `<img src="pages/book-${p}.jpg" alt="Textbook page ${p}" onerror="noScan()">`;
+  document.querySelectorAll('#bookTabs button[data-p]').forEach(b => b.classList.toggle('primary', +b.dataset.p === p));
+  S.page = p; saveS();
+}
+function noScan(){
+  document.getElementById('bookBox').innerHTML = `<div class="card small"><p><b>Textbook not included.</b> Open your own copy of
+    汉语教程（第3版）第一册·上 to see it here, next to the drill.</p>
+    <label class="btn primary" style="display:inline-block">Open my textbook PDF<input type="file" accept="application/pdf" hidden onchange="usePdf(this)"></label>
+    <p class="muted">The file stays on your computer. Nothing is uploaded.</p></div>`;
+}
+function usePdf(input){
+  const f = input.files && input.files[0];
+  if (!f) return;
+  if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+  pdfUrl = URL.createObjectURL(f);
+  showBook(S.page || 12);
+}
+document.getElementById('bookTabs').innerHTML = PAGES.map(([p, l]) => `<button class="btn" data-p="${p}">${l}</button>`).join('') +
+  `<label class="small" style="margin-left:auto;cursor:pointer;color:var(--accent)">Open PDF…<input type="file" accept="application/pdf" hidden onchange="usePdf(this)"></label>`;
+document.getElementById('bookTabs').onclick = e => { const p = e.target.dataset.p; if (p) showBook(+p); };
+
+/* ---------- helpers ---------- */
+const $main = document.getElementById('main');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = (a, n) => shuffle(a).slice(0, n);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function strokes(el, ch, quiz){
+  if (!window.HanziWriter) { el.innerHTML = '<p class="small muted">Stroke animation needs internet (it loads from jsdelivr). Use the stroke row on the book page instead.</p>'; return; }
+  el.innerHTML = '';
+  const w = HanziWriter.create(el, ch, {width:170, height:170, padding:10, showOutline:true, strokeColor:css('--ink'),
+    outlineColor:css('--line'), drawingColor:css('--accent'), highlightColor:css('--accent'), delayBetweenStrokes:180, showCharacter:!quiz});
+  if (quiz) w.quiz({onComplete: s => { const m = document.createElement('div'); m.className = 'small'; m.textContent = s.totalMistakes ? `Done with ${s.totalMistakes} wrong stroke(s). Again until 0.` : 'Clean! 0 mistakes.'; el.appendChild(m); }});
+  else w.animateCharacter();
+}
+let tab = 'study', keyHandler = null;
+function go(t){
+  tab = t; stopSpeech(); clearInterval(mock && mock.timer); keyHandler = null;
+  document.body.classList.remove('mocking');
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  ({study:renderStudy, practice:renderSetup, mock:renderMockIntro, errors:renderErrors})[t]();
+}
+document.getElementById('nav').onclick = e => { const t = e.target.closest('button'); if (t) go(t.dataset.tab); };
+document.addEventListener('keydown', e => { if (keyHandler) keyHandler(e); });
+
+/* ---------- Study ---------- */
+const PLAN = [
+  ['0:00–0:15','Read the rules below aloud. Say every example.'],
+  ['0:15–0:45','L1: stroke-order quiz on each character until 0 mistakes, then write each 5× on paper from memory, with pinyin.'],
+  ['0:45–1:30','Practice by section, Ex 2 → Ex 1 → Ex 3 syllables → Ex 3 words. Write on paper AND type. Misses come back.'],
+  ['1:30–1:40','Break: stand up, water, no phone.'],
+  ['1:40–2:05','Mock test #1 on paper. Mark honestly.'],
+  ['2:05–2:35','Errors tab: drill until the list is empty. Write each miss 3× by hand.'],
+  ['2:35–3:00','Mock test #2. Below 18/20? One more error round + mock #3.'],
+  ['Sleep','At least 6 h. Sleep is when tonight\'s practice gets stored.'],
+  ['Morning','15 min: error drill + one mock with Reads 1×.'],
+];
+const RULES = [
+  '<b>Tone mark position:</b> on a; else on o or e; else on the last vowel of iu / ui → jiǔ, xiū, duì.',
+  '<b>ü after j q x is written u:</b> jū qū xū, jú, qǔ, xuǎn, jūn, qún.',
+  '<b>ü after n / l keeps its dots:</b> nǚ, lǚlì. But nǔlì (努力) is plain u.',
+  '<b>iou after an initial → iu:</b> liù, jiǔ, qiú, xiū.',
+  '<b>不 = bù, but bú before a 4th tone:</b> bú yào, bú kàn, bú niàn, bú jìn, bú qù. Before 1st/2nd/3rd it stays bù: bù hē, bù máng, bù hǎo.',
+  '<b>3rd + 3rd:</b> spoken ní hǎo, written <b>nǐ hǎo</b>.',
+  '<b>Neutral tone, no mark:</b> xiūxi, dōngbian, xībian, qiánbian, hòubian.',
+  '<b>-n vs -ng:</b> jīn/jīng, xīn/xīng, qín/qīng, jiān/jiāng. -ng is pronounced further back.',
+  '<b>j q x only before i or ü;</b> q = j with a puff of air (jiè vs qiè).',
+];
+function renderStudy(){
+  const done = store.get('plan', {});
+  $main.innerHTML = `
+    ${voices.length ? '' : '<div class="warn">No Mandarin voice found. Use Safari or Chrome on the Mac; Tingting comes with macOS (System Settings → Accessibility → Spoken Content).</div>'}
+    <div class="card plan"><h2>Tonight's plan (≈3 h)</h2>${PLAN.map(([t, d], i) =>
+      `<label><input type="checkbox" data-i="${i}" ${done[i] ? 'checked' : ''}><span class="t">${t}</span><span>${d}</span></label>`).join('')}</div>
+    <div class="card"><h2>The rules that decide marks</h2><ul class="rules">${RULES.map(r => `<li>${r}</li>`).join('')}</ul></div>
+    <div class="card"><h2>Stroke order · L1 characters</h2>
+      <p class="small muted">Click a character to watch it, then "Draw it" to write it with the trackpad or mouse.</p>
+      <div class="chips" id="hzChips">${bySec('l1char').map(it => `<span class="chip" data-hz="${it.hz}" style="font-size:22px">${it.hz}<span class="hz">${show(it)}</span><span class="hz">${it.en}</span></span>`).join('')}</div>
+      <div class="row" style="margin-top:10px"><div class="hw" id="hw"></div>
+        <div><button class="btn" id="hwAnim">Watch</button> <button class="btn" id="hwQuiz">Draw it</button></div></div>
+    </div>
+    ${SECTIONS.map(s => `<div class="card"><h2>${s.name} <span class="small muted">· ${s.task}${s.chars ? '' : ' (characters only drive the voice)'}</span></h2>
+      <div class="chips">${bySec(s.id).map(it => `<span class="chip ${it.key ? 'key' : ''}" data-id="${esc(it.id)}">${show(it)}<span class="hz">${it.hz}${it.en ? ' · ' + esc(it.en) : ''}</span></span>`).join('')}</div></div>`).join('')}
+    <p class="small muted">Red outline = the answer word the book picks in Ex 1/Ex 2. Click any chip to hear it and jump the book to its page.</p>`;
+  $main.querySelectorAll('.plan input').forEach(c => c.onchange = () => { done[c.dataset.i] = c.checked; store.set('plan', done); });
+  let cur = '一';
+  const hw = document.getElementById('hw');
+  document.getElementById('hzChips').onclick = e => { const c = e.target.closest('[data-hz]'); if (!c) return; cur = c.dataset.hz; speak(cur, 1); strokes(hw, cur); showBook(['女','你','好','马'].includes(cur) ? 13 : 12); };
+  document.getElementById('hwAnim').onclick = () => strokes(hw, cur);
+  document.getElementById('hwQuiz').onclick = () => strokes(hw, cur, true);
+  strokes(hw, cur);
+  $main.querySelectorAll('.chip[data-id]').forEach(c => c.onclick = () => { const it = ITEMS.find(i => i.id === c.dataset.id); speak(it.hz, 1); showBook(it.page); });
+}
+
+/* ---------- Practice ---------- */
+function renderSetup(){
+  $main.innerHTML = `<div class="card"><h2>Practice</h2>
+    <p class="small muted">The voice reads an item (${S.reps}× by default). Write it on paper first, then type it to auto-check.
+    Tone numbers are fine: <kbd>ni3 hao3</kbd>, <kbd>nv3</kbd> for nǚ, <kbd>xiu1xi</kbd>. Typing numbers places the mark for you, so on paper place it yourself.</p>
+    <div class="sections">${SECTIONS.map(s => `<label><input type="checkbox" value="${s.id}" ${S.secs.includes(s.id) ? 'checked' : ''}> ${s.name} <span class="muted small">(${s.items.length})</span></label>`).join('')}</div>
+    <div class="row"><button class="btn primary" id="go">Start</button><span class="small muted">Every miss comes back 3 items later until you get it.</span></div></div>`;
+  document.getElementById('go').onclick = () => {
+    S.secs = [...$main.querySelectorAll('.sections input:checked')].map(c => c.value); saveS();
+    const items = ITEMS.filter(i => S.secs.includes(i.sec));
+    if (items.length) startPractice(items, 'Practice');
+  };
+}
+let P = null;
+function startPractice(items, label){
+  P = {label, queue:shuffle(items), total:items.length, first:new Map(), cur:null, res:null, verdict:null};
+  nextItem();
+}
+function nextItem(){
+  P.cur = P.queue.shift(); P.res = null; P.verdict = null;
+  if (!P.cur) return practiceSummary();
+  renderItem(); speak(P.cur.hz);
+}
+function renderItem(){
+  const it = P.cur, r = P.res;
+  const cls = !r ? '' : P.verdict === true ? 'ok' : P.verdict === false ? 'bad' : 'pending';
+  $main.innerHTML = `<div class="card drill">
+    <div class="count">${P.label} · ${P.first.size}/${P.total} seen · ${[...P.first.values()].filter(Boolean).length} right first try · ${P.queue.length} left in queue</div>
+    <div class="task">${it.task}</div>
+    <div class="row" style="justify-content:center;margin-bottom:12px"><button class="btn" id="play">▶ Replay</button><button class="btn" id="slow">Slow</button></div>
+    <input class="ans" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="type pinyin…" ${r ? 'readonly' : ''} value="${r ? esc(P.typed || '') : ''}">
+    ${r ? `<div class="answer ${cls}">
+      <div class="verdict">${P.verdict === true ? 'Correct' : P.verdict === false ? 'Wrong' : 'Mark yourself'}</div>
+      <div class="py">${show(it)}</div><div class="hzbig">${it.hz}</div>${it.en ? `<div class="small">${esc(it.en)}</div>` : ''}
+      ${r.yours ? `<div class="small">You: ${esc(r.yours)}</div>` : ''}
+      ${r.msg ? `<div class="small" style="margin-top:6px">${esc(r.msg)}</div>` : ''}
+      ${it.chars && it.hz.length === 1 ? '<div class="hw" id="hw"></div>' : ''}
+    </div>` : ''}
+    <div class="keys">${r ? (P.verdict === null ? '<kbd>C</kbd> I got it · <kbd>X</kbd> I missed it' : '<kbd>Enter</kbd> next · <kbd>X</kbd> actually wrong · <kbd>C</kbd> actually right')
+      : '<kbd>Enter</kbd> check (empty = self-mark from paper) · <kbd>↑</kbd> replay'}</div>
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn" id="quit">End session</button></div></div>`;
+  const ans = document.getElementById('ans'); ans.focus();
+  document.getElementById('play').onclick = () => { speak(it.hz); ans.focus(); };
+  document.getElementById('slow').onclick = () => { speak(it.hz, 1, 0.55); ans.focus(); };
+  document.getElementById('quit').onclick = practiceSummary;
+  if (r && it.chars && it.hz.length === 1) strokes(document.getElementById('hw'), it.hz);
+  keyHandler = e => {
+    if (e.key === 'ArrowUp') { e.preventDefault(); speak(it.hz); return; }
+    if (!P.res) { if (e.key === 'Enter') { e.preventDefault(); P.typed = ans.value; P.res = grade(it, ans.value); P.verdict = P.res.ok; showBook(it.page); renderItem(); } return; }
+    const k = e.key.toLowerCase();
+    if (k === 'x' || k === 'c') { e.preventDefault(); P.verdict = k === 'c'; renderItem(); return; }
+    if (e.key === 'Enter' && P.verdict !== null) { e.preventDefault(); commit(); }
+  };
+}
+function commit(){
+  const it = P.cur, ok = P.verdict;
+  if (!P.first.has(it.id)) P.first.set(it.id, ok);
+  noteResult(it, ok);
+  if (!ok) P.queue.splice(Math.min(3, P.queue.length), 0, it);
+  nextItem();
+}
+function practiceSummary(){
+  stopSpeech(); keyHandler = null;
+  const seen = [...P.first.entries()], right = seen.filter(([, v]) => v).length;
+  const missed = seen.filter(([, v]) => !v).map(([id]) => ITEMS.find(i => i.id === id));
+  $main.innerHTML = `<div class="card"><h2>${P.label}: done</h2>
+    <div class="score">${right}/${seen.length}</div><p class="muted">right on the first try</p>
+    ${missed.length ? `<p>Missed first time (now in Errors):</p><div class="chips">${missed.map(it => `<span class="chip">${show(it)}<span class="hz">${it.hz}</span></span>`).join('')}</div>` : '<p>No misses.</p>'}
+    <div class="row" style="margin-top:14px"><button class="btn primary" id="again">Practice again</button><button class="btn" id="errs">Drill errors</button></div></div>`;
+  document.getElementById('again').onclick = () => go('practice');
+  document.getElementById('errs').onclick = () => go('errors');
+}
+
+/* ---------- Mock test ---------- */
+let mock = null;
+function buildMock(){
+  const ex1 = bySec('ex1'), ex2 = bySec('ex2'), ex3s = bySec('ex3s'), ex3w = bySec('ex3w');
+  const ex1key = pick(ex1.filter(i => i.key), 2);
+  const ex1rest = pick(ex1.filter(i => !ex1key.includes(i)), 2);
+  return [...bySec('l1comm'), ...pick(bySec('l1char'), 4), ...ex1key, ...ex1rest,
+    ...pick(ex2.filter(i => i.key), 2), ...pick(ex2.filter(i => !i.key), 2), ...pick(ex3s, 4), ...pick(ex3w, 3)];
+}
+function renderMockIntro(){
+  $main.innerHTML = `<div class="card"><h2>Mock test · 20 items</h2>
+    <p>Like the real thing: each item is read ${S.reps}×, then you get <input id="gap" type="number" min="4" max="40" value="${S.gap}" style="width:52px"> s to write before the next one starts.
+    The book is hidden. Write on paper; typing in the box is optional and only used for auto-marking.</p>
+    <p class="small muted">Mix: 你好 + 4 L1 characters, 4 from Ex 1, 4 from Ex 2 (2 with bú), 4 Ex 3 syllables, 3 Ex 3 words. Order is shuffled.</p>
+    <div class="row"><button class="btn primary" id="start">Start mock</button></div></div>`;
+  document.getElementById('start').onclick = () => { S.gap = Math.max(4, +document.getElementById('gap').value || 12); saveS(); startMock(); };
+}
+function startMock(){
+  document.body.classList.add('mocking');
+  mock = {items:shuffle(buildMock()), i:0, typed:[], timer:null, left:0, paused:false};
+  runMockItem();
+}
+function renderMock(status){
+  const m = mock;
+  $main.innerHTML = `<div class="card drill">
+    <div class="count">Mock test · item ${m.i + 1} / ${m.items.length}</div>
+    <div class="task" id="st">${status}</div>
+    <input class="ans" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="optional: type pinyin">
+    <div class="bar"><i id="bar" style="width:100%"></i></div>
+    <div class="row" style="justify-content:center;margin-top:14px"><button class="btn" id="rep">▶ Read again</button><button class="btn" id="pause">Pause</button><button class="btn" id="nx">Next →</button><button class="btn" id="end">End</button></div>
+    <div class="keys"><kbd>Enter</kbd> next item</div></div>`;
+  const ans = document.getElementById('ans'); ans.value = m.typed[m.i] || ''; ans.focus();
+  ans.oninput = () => { m.typed[m.i] = ans.value; };
+  document.getElementById('rep').onclick = () => { speak(m.items[m.i].hz, 1); ans.focus(); };
+  document.getElementById('nx').onclick = advanceMock;
+  document.getElementById('end').onclick = finishMock;
+  document.getElementById('pause').onclick = e => { m.paused = !m.paused; e.target.textContent = m.paused ? 'Resume' : 'Pause'; ans.focus(); };
+  keyHandler = e => { if (e.key === 'Enter') { e.preventDefault(); advanceMock(); } };
+}
+async function runMockItem(){
+  const m = mock, i = m.i;
+  clearInterval(m.timer);
+  renderMock('Listen…');
+  await speak(m.items[i].hz);
+  if (mock !== m || m.i !== i || tab !== 'mock') return;
+  m.left = S.gap;
+  const st = document.getElementById('st'), bar = document.getElementById('bar');
+  const tick = () => { st.textContent = `Write · ${m.left}s`; bar.style.width = (100 * m.left / S.gap) + '%'; };
+  tick();
+  m.timer = setInterval(() => { if (m.paused) return; m.left--; if (m.left <= 0) advanceMock(); else tick(); }, 1000);
+}
+function advanceMock(){
+  const m = mock; clearInterval(m.timer); stopSpeech();
+  const a = document.getElementById('ans'); if (a) m.typed[m.i] = a.value;
+  if (++m.i >= m.items.length) finishMock(); else runMockItem();
+}
+function finishMock(){
+  const m = mock; clearInterval(m.timer); stopSpeech(); keyHandler = null;
+  document.body.classList.remove('mocking');
+  const a = document.getElementById('ans'); if (a && m.i < m.items.length) m.typed[m.i] = a.value;
+  m.items = m.items.slice(0, Math.max(1, Math.min(m.items.length, m.i + 1)));
+  m.msgs = m.items.map((it, k) => grade(it, m.typed[k] || ''));
+  m.marks = m.msgs.map(g => g.ok);
+  renderMockResults();
+}
+function renderMockResults(){
+  const m = mock, right = m.marks.filter(v => v === true).length, open = m.marks.filter(v => v === null).length;
+  $main.innerHTML = `<div class="card"><h2>Mock result</h2>
+    <div class="score">${right}/${m.items.length}</div>
+    <p class="muted small">${open ? `${open} item(s) still unmarked: compare your paper and click the mark column. ` : ''}Click any mark to flip it. Click a 汉字 to hear it again. Characters (L1) always need a paper check.</p>
+    <table><tr><th>#</th><th>Answer</th><th>汉字</th><th>Typed</th><th>Note</th><th>Mark</th></tr>
+    ${m.items.map((it, k) => `<tr><td>${k + 1}</td><td><b>${show(it)}</b></td><td class="hzc" data-k="${k}" style="cursor:pointer">${it.hz}</td><td>${esc(m.typed[k] || '')}</td>
+      <td class="small muted">${esc(m.msgs[k].ok === false ? m.msgs[k].msg : '')}</td>
+      <td class="mark ${m.marks[k] === true ? 'y' : m.marks[k] === false ? 'n' : ''}" data-k="${k}">${m.marks[k] === true ? '✓' : m.marks[k] === false ? '✗' : '?'}</td></tr>`).join('')}</table>
+    <div class="row" style="margin-top:14px"><button class="btn primary" id="save">Send misses to Errors</button><button class="btn" id="again">New mock</button></div></div>`;
+  $main.querySelectorAll('td.mark').forEach(td => td.onclick = () => { const k = +td.dataset.k; m.marks[k] = m.marks[k] !== true; renderMockResults(); });
+  $main.querySelectorAll('td.hzc').forEach(td => td.onclick = () => speak(m.items[+td.dataset.k].hz, 1));
+  document.getElementById('save').onclick = e => {
+    m.items.forEach((it, k) => { if (m.marks[k] === false) noteResult(it, false); });
+    e.target.textContent = 'Saved ✓'; e.target.disabled = true;
+  };
+  document.getElementById('again').onclick = () => go('mock');
+}
+
+/* ---------- Errors ---------- */
+function renderErrors(){
+  const rows = Object.entries(bank).map(([id, e]) => ({it:ITEMS.find(i => i.id === id), ...e})).filter(r => r.it).sort((a, b) => b.miss - a.miss);
+  $main.innerHTML = `<div class="card"><h2>Error list · ${rows.length}</h2>
+    <p class="small muted">An item leaves the list after 2 correct answers in a row. Saved in this browser.</p>
+    ${rows.length ? `<table><tr><th>Answer</th><th>汉字</th><th>Section</th><th>Misses</th></tr>
+      ${rows.map(r => `<tr data-id="${esc(r.it.id)}" style="cursor:pointer"><td><b>${show(r.it)}</b></td><td>${r.it.hz}</td><td class="small">${SECTIONS.find(s => s.id === r.it.sec).name}</td><td>${r.miss}</td></tr>`).join('')}</table>
+      <div class="row" style="margin-top:14px"><button class="btn primary" id="drill">Drill errors</button><button class="btn" id="clear">Clear list</button></div>`
+      : '<p>Empty. Run a practice round or a mock test first.</p>'}</div>`;
+  $main.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => { const it = ITEMS.find(i => i.id === tr.dataset.id); speak(it.hz, 1); showBook(it.page); });
+  const d = document.getElementById('drill');
+  if (d) d.onclick = () => startPractice(rows.map(r => r.it), 'Error drill');
+  const c = document.getElementById('clear');
+  if (c) c.onclick = () => { if (confirm('Clear the whole error list?')) { bank = {}; saveBank(); renderErrors(); } };
+}
+
+/* ---------- settings wiring ---------- */
+const rate = document.getElementById('rate'), reps = document.getElementById('reps'), sb = document.getElementById('showBook');
+rate.value = S.rate; reps.value = S.reps; sb.checked = S.book !== false;
+document.body.classList.toggle('nobook', !sb.checked);
+rate.oninput = () => { S.rate = +rate.value; saveS(); };
+reps.onchange = () => { S.reps = +reps.value; saveS(); };
+sb.onchange = () => { S.book = sb.checked; document.body.classList.toggle('nobook', !sb.checked); saveS(); };
+document.getElementById('voice').onchange = e => { voice = e.target.value === 'rec' ? null : voices[+e.target.value] || null; S.voice = voice ? voice.name : 'rec'; saveS(); speak('你好', 1); };
+loadVoices();
+if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => { const had = voices.length; loadVoices(); if (tab === 'study' && !had) renderStudy(); };
+showBook(S.page || 12);
+saveBank();
+const startTab = location.hash.slice(1);
+['study', 'practice', 'mock', 'errors'].includes(startTab) ? go(startTab) : renderStudy();
+</script>
+</body>
+</html>
