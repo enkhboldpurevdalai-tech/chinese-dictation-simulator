@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dictation Simulator</title>
 <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
+<script src="audio-human/human.js"></script>
 <style>
 :root{
   --bg:#f6f5f1; --panel:#fff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e3e1da; --chip:#f0eee8;
@@ -248,23 +249,30 @@ let voices = [], voice = null, speakTok = 0;
 function loadVoices(){
   voices = (window.speechSynthesis ? speechSynthesis.getVoices() : []).filter(v => /^zh[-_](CN|Hans)/i.test(v.lang) || /普通话|Mandarin|Tingting|Ting-Ting/i.test(v.name));
   const sel = document.getElementById('voice');
-  sel.innerHTML = '<option value="rec">Natural (recorded)</option>' + voices.map((v, i) => `<option value="${i}">${v.name} (Mac)</option>`).join('');
+  sel.innerHTML = '<option value="human">Native speakers</option><option value="rec">AI voice (Xiaoxiao)</option>' + voices.map((v, i) => `<option value="${i}">${v.name} (Mac)</option>`).join('');
+  if (S.audioV !== 2) { S.audioV = 2; if (!voices.some(v => v.name === S.voice)) S.voice = 'human'; saveS(); }
   const k = voices.findIndex(v => v.name === S.voice);
-  sel.value = k >= 0 ? String(k) : 'rec'; voice = voices[k] || null;
-  if (k < 0) S.voice = 'rec';
+  sel.value = k >= 0 ? String(k) : (S.voice === 'rec' ? 'rec' : 'human'); voice = voices[k] || null;
+  if (k < 0 && S.voice !== 'rec') S.voice = 'human';
 }
 let player = null;
+// AI voice clips (audio/) and native-speaker clips (audio-human/, listed in human.js; words are one clip or a syllable sequence)
 const audioFile = t => 'audio/' + [...t].map(c => c.codePointAt(0).toString(16)).join('_') + '.mp3';
-function playRecorded(text, times, rate, tok){
+const humanFiles = t => (typeof HUMAN !== 'undefined' && HUMAN[t]) ? HUMAN[t].map(f => 'audio-human/' + encodeURIComponent(f)) : null;
+function playFiles(urls, times, rate, tok){
   return new Promise(res => {
     const once = n => {
-      if (tok !== speakTok) return res(false);
-      const a = player = new Audio(audioFile(text));
-      a.preservesPitch = true; a.playbackRate = Math.min(1.6, Math.max(0.5, rate / 0.8));
-      let done = false;
-      const fin = ok => { if (done) return; done = true; if (!ok) return res('fail'); n > 1 ? setTimeout(() => once(n - 1), 1100) : res(true); };
-      a.onended = () => fin(true); a.onerror = () => fin(false);
-      a.play().catch(() => fin(false));
+      const step = k => {
+        if (tok !== speakTok) return res(false);
+        if (k >= urls.length) return n > 1 ? setTimeout(() => once(n - 1), 1100) : res(true);
+        const a = player = new Audio(urls[k]);
+        a.preservesPitch = true; a.playbackRate = Math.min(1.6, Math.max(0.5, rate / 0.8));
+        let done = false;
+        const fin = ok => { if (done) return; done = true; ok ? setTimeout(() => step(k + 1), 40) : res('fail'); };
+        a.onended = () => fin(true); a.onerror = () => fin(false);
+        a.play().catch(() => fin(false));
+      };
+      step(0);
     };
     once(times);
   });
@@ -273,9 +281,9 @@ function speak(text, times, rate){
   times = times || S.reps; rate = rate || S.rate;
   const tok = ++speakTok;
   if (player) { player.pause(); player = null; }
-  if (S.voice === '' || S.voice === 'rec') {
-    return playRecorded(text, times, rate, tok).then(r => r === 'fail' ? speakTTS(text, times, rate, tok) : r);
-  }
+  const ai = () => playFiles([audioFile(text)], times, rate, tok).then(r => r === 'fail' ? speakTTS(text, times, rate, tok) : r);
+  if (S.voice === 'human') { const h = humanFiles(text); return h ? playFiles(h, times, rate, tok).then(r => r === 'fail' ? ai() : r) : ai(); }
+  if (S.voice === 'rec') return ai();
   return speakTTS(text, times, rate, tok);
 }
 function speakTTS(text, times, rate, tok){
@@ -388,7 +396,8 @@ function renderStudy(){
     </div>
     ${SECTIONS.map(s => `<div class="card"><h2>${s.name} <span class="small muted">· ${s.task}${s.chars ? '' : ' (characters only drive the voice)'}</span></h2>
       <div class="chips">${bySec(s.id).map(it => `<span class="chip ${it.key ? 'key' : ''}" data-id="${esc(it.id)}">${show(it)}<span class="hz">${it.hz}${it.en ? ' · ' + esc(it.en) : ''}</span></span>`).join('')}</div></div>`).join('')}
-    <p class="small muted">Red outline = the answer word the book picks in Ex 1/Ex 2. Click any chip to hear it and jump the book to its page.</p>`;
+    <p class="small muted">Red outline = the answer word the book picks in Ex 1/Ex 2. Click any chip to hear it and jump the book to its page.</p>
+    <p class="small muted">Native-speaker audio: <a href="https://github.com/hugolpz/audio-cmn" target="_blank">audio-cmn</a> (syllables by Chen Wang, words by Yue Tan via Shtooka), CC BY-SA. Two-syllable items without a word recording are played as two syllables in their spoken tones (你好 = ní + hǎo).</p>`;
   $main.querySelectorAll('.plan input').forEach(c => c.onchange = () => { done[c.dataset.i] = c.checked; store.set('plan', done); });
   let cur = '一';
   const hw = document.getElementById('hw');
@@ -579,7 +588,7 @@ document.body.classList.toggle('nobook', !sb.checked);
 rate.oninput = () => { S.rate = +rate.value; saveS(); };
 reps.onchange = () => { S.reps = +reps.value; saveS(); };
 sb.onchange = () => { S.book = sb.checked; document.body.classList.toggle('nobook', !sb.checked); saveS(); };
-document.getElementById('voice').onchange = e => { voice = e.target.value === 'rec' ? null : voices[+e.target.value] || null; S.voice = voice ? voice.name : 'rec'; saveS(); speak('你好', 1); };
+document.getElementById('voice').onchange = e => { const v = e.target.value; voice = (v === 'rec' || v === 'human') ? null : voices[+v] || null; S.voice = voice ? voice.name : v; saveS(); speak('你好', 1); };
 loadVoices();
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => { const had = voices.length; loadVoices(); if (tab === 'study' && !had) renderStudy(); };
 showBook(S.page || 12);
