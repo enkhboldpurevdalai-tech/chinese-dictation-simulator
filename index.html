@@ -92,6 +92,7 @@ body.mocking .book .imgbox::after{content:"Book hidden during the mock test";pos
   <h1>听写 Dictation · Mon 19 Oct</h1>
   <nav id="nav">
     <button data-tab="study" class="on">Study</button>
+    <button data-tab="tones">Tones</button>
     <button data-tab="practice">Practice</button>
     <button data-tab="mock">Mock test</button>
     <button data-tab="errors">Errors <span id="errCount"></span></button>
@@ -350,7 +351,7 @@ function go(t){
   tab = t; stopSpeech(); clearInterval(mock && mock.timer); keyHandler = null;
   document.body.classList.remove('mocking');
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  ({study:renderStudy, practice:renderSetup, mock:renderMockIntro, errors:renderErrors})[t]();
+  ({study:renderStudy, tones:renderTones, practice:renderSetup, mock:renderMockIntro, errors:renderErrors})[t]();
 }
 document.getElementById('nav').onclick = e => { const t = e.target.closest('button'); if (t) go(t.dataset.tab); };
 document.addEventListener('keydown', e => { if (keyHandler) keyHandler(e); });
@@ -399,6 +400,88 @@ function renderStudy(){
   document.getElementById('hwQuiz').onclick = () => strokes(hw, cur, true);
   strokes(hw, cur);
   $main.querySelectorAll('.chip[data-id]').forEach(c => c.onclick = () => { const it = ITEMS.find(i => i.id === c.dataset.id); speak(it.hz, 1); showBook(it.page); });
+}
+
+/* ---------- Tone trainer: hear one syllable (Ex 1 + Ex 3), name its tone, compare with its other tones ---------- */
+const TONE_LABEL = {1:'1 · flat ā', 2:'2 · rising á', 3:'3 · dip ǎ', 4:'4 · falling à'};
+const toneOf = it => +it.py.slice(-1);
+const baseOf = it => it.py.slice(0, -1);
+const TONE_POOL = ITEMS.filter(i => i.sec === 'ex1' || i.sec === 'ex3s');
+let T = {n:0, right:0, confuse:{}, cur:null, ans:null};
+const toneTones = () => (S.toneMode === '23' ? [2, 3] : [1, 2, 3, 4]);
+function toneStats(){
+  const mix = Object.entries(T.confuse).sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => { const [c, g] = k.split('>'); return `heard ${c === '2' ? '2nd' : c === '3' ? '3rd' : c === '1' ? '1st' : '4th'} as ${g === '2' ? '2nd' : g === '3' ? '3rd' : g === '1' ? '1st' : '4th'} ×${v}`; });
+  return T.n ? `<p class="small muted">Score ${T.right}/${T.n}${mix.length ? ' · Mix-ups: ' + mix.join(', ') : ''}</p>` : '';
+}
+function renderTones(){
+  const mode = S.toneMode || 'all';
+  $main.innerHTML = `<div class="card"><h2>Tone trainer</h2>
+    <p class="small">2nd vs 3rd is the hardest pair for almost every learner. The end of a 3rd tone can rise, so it sounds like a 2nd. Listen to the <b>start</b>:</p>
+    <ul class="small rules">
+      <li><b>2nd (á):</b> starts in the middle and goes <b>straight up</b>, like asking "huh?". Short and bright.</li>
+      <li><b>3rd (ǎ):</b> starts low and <b>drops lower first</b>. The voice goes deep, often a bit creaky, and only lifts at the very end. Longer.</li>
+      <li><b>Trick:</b> hum it back. If your voice goes up right away, it's 2nd. If it sinks first, it's 3rd.</li>
+    </ul>
+    <div class="row" style="margin-top:8px">
+      <label><input type="radio" name="tm" value="23" ${mode === '23' ? 'checked' : ''}> Only 2nd vs 3rd (start here)</label>
+      <label><input type="radio" name="tm" value="all" ${mode === 'all' ? 'checked' : ''}> All 4 tones</label>
+      <button class="btn primary" id="tgo">Start</button>
+    </div>${toneStats()}</div>`;
+  document.getElementById('tgo').onclick = () => {
+    S.toneMode = $main.querySelector('input[name=tm]:checked').value; saveS();
+    T = {n:0, right:0, confuse:{}, cur:null, ans:null}; nextTone();
+  };
+}
+function nextTone(){
+  const tones = toneTones();
+  const pool = TONE_POOL.filter(i => tones.includes(toneOf(i)));
+  let it; do { it = pick(pool, 1)[0]; } while (pool.length > 1 && T.cur && it.id === T.cur.id);
+  T.cur = it; T.ans = null; drawTone(); speak(it.hz, 1);
+}
+function siblings(it){
+  const byTone = {};
+  for (const i of TONE_POOL) if (baseOf(i) === baseOf(it) && !byTone[toneOf(i)]) byTone[toneOf(i)] = i;
+  return Object.keys(byTone).sort().map(t => byTone[t]);
+}
+async function playRow(list){ for (const i of list) { if (tab !== 'tones') return; await speak(i.hz, 1); await new Promise(r => setTimeout(r, 350)); } }
+function drawTone(){
+  const it = T.cur, c = toneOf(it), sib = siblings(it), answered = T.ans !== null;
+  $main.innerHTML = `<div class="card drill">
+    <div class="count">Tone trainer · ${S.toneMode === '23' ? '2nd vs 3rd' : 'all 4 tones'}</div>
+    <div class="task">Which tone did you hear?</div>
+    <div class="row" style="justify-content:center;margin-bottom:12px"><button class="btn" id="rep">▶ Replay</button><button class="btn" id="slow">Slow</button></div>
+    <div class="row" style="justify-content:center">${toneTones().map(t => {
+      const style = !answered ? '' : t === c ? 'background:var(--ok-bg);border-color:var(--ok)' : t === T.ans ? 'background:var(--bad-bg);border-color:var(--bad)' : '';
+      return `<button class="btn" data-t="${t}" style="min-width:120px;${style}">${TONE_LABEL[t]}</button>`; }).join('')}</div>
+    ${answered ? `<div class="answer ${T.ans === c ? 'ok' : 'bad'}">
+      <div class="verdict">${T.ans === c ? 'Correct' : `It was the ${['', '1st', '2nd', '3rd', '4th'][c]} tone`}</div>
+      <div class="py">${show(it)}</div>
+      <p class="small">Compare the same syllable in its other tones:</p>
+      <div class="row" style="justify-content:center">${sib.map(s => `<button class="btn" data-play="${esc(s.id)}" ${s.id === it.id ? 'style="border-color:var(--accent)"' : ''}>▶ ${show(s)}</button>`).join('')}
+        ${sib.length > 1 ? '<button class="btn" id="row">▶ All in a row</button>' : ''}</div>
+    </div>` : ''}
+    <div class="keys">${answered ? '<kbd>Enter</kbd> next · <kbd>↑</kbd> replay' : `<kbd>${toneTones().join('</kbd> <kbd>')}</kbd> answer · <kbd>↑</kbd> replay`}</div>
+    ${toneStats()}
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn" id="tend">End</button></div></div>`;
+  document.getElementById('rep').onclick = () => speak(it.hz, 1);
+  document.getElementById('slow').onclick = () => speak(it.hz, 1, 0.55);
+  document.getElementById('tend').onclick = renderTones;
+  $main.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => answerTone(+b.dataset.t));
+  $main.querySelectorAll('button[data-play]').forEach(b => b.onclick = () => speak(ITEMS.find(i => i.id === b.dataset.play).hz, 1));
+  const row = document.getElementById('row'); if (row) row.onclick = () => playRow(sib);
+  keyHandler = e => {
+    if (e.key === 'ArrowUp') { e.preventDefault(); speak(it.hz, 1); return; }
+    if (!answered && toneTones().includes(+e.key)) { e.preventDefault(); answerTone(+e.key); return; }
+    if (answered && e.key === 'Enter') { e.preventDefault(); nextTone(); }
+  };
+}
+function answerTone(t){
+  if (T.ans !== null) return;
+  const c = toneOf(T.cur); T.ans = t; T.n++;
+  if (t === c) T.right++; else T.confuse[c + '>' + t] = (T.confuse[c + '>' + t] || 0) + 1;
+  drawTone();
+  if (t !== c) setTimeout(() => { const s = siblings(T.cur).filter(i => [c, t].includes(toneOf(i))); if (s.length === 2) playRow(s); }, 400);
 }
 
 /* ---------- Practice ---------- */
